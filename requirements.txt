@@ -1,0 +1,9 @@
+streamlit
+google-api-python-client
+pandas
+plotly
+isodate
+requests
+google-generativeai
+xlsxwriter
+python-docx
