@@ -17,6 +17,8 @@ from docx.shared import Pt # 폰트 크기 조절용
 # 스트림릿 금고(Secrets)에서 키를 가져옵니다
 import streamlit as st
 GEMINI_API_KEY = st.secrets["GOOGLE_API_KEY"]
+import google.generativeai as genai
+genai.configure(api_key=GEMINI_API_KEY)
 # ==============================================================================
 
 st.set_page_config(page_title="Solinker Channel Analyzer", page_icon="⚡", layout="wide")
@@ -330,3 +332,4 @@ else:
     st.title("🎥 Solinker Channel Analyzer")
 
     st.markdown("왼쪽 사이드바에 **유튜브 키**와 **핸들**을 입력하고 **[심층 분석 시작]**을 눌러주세요.")
+
