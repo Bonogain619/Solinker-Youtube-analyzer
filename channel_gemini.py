@@ -14,11 +14,7 @@ from docx.shared import Pt # 폰트 크기 조절용
 # ==============================================================================
 # [필승 설정] check.py에서 성공했던 그 'Gemini 키'를 따옴표 안에 붙여넣으세요!
 # ==============================================================================
-# 스트림릿 금고(Secrets)에서 키를 가져옵니다
-import streamlit as st
-GEMINI_API_KEY = st.secrets["GOOGLE_API_KEY"]
-import google.generativeai as genai
-genai.configure(api_key=GEMINI_API_KEY)
+GEMINI_API_KEY = "AIzaSyASndV5RssUI9Uj3Shuwm8BdhnFP5F7vx4"
 # ==============================================================================
 
 st.set_page_config(page_title="Solinker Channel Analyzer", page_icon="⚡", layout="wide")
@@ -210,22 +206,15 @@ def _add_table_to_doc(doc, markdown_lines):
                         run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Malgun Gothic')
 
 # 4. AI 연결
-# 기존의 복잡한 requests 방식 대신, 공식 라이브러리를 사용합니다.
 def call_gemini_rest(prompt):
-    try:
-        # 1. 모델 설정 (우리가 아까 설정한 키를 자동으로 가져다 씁니다)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        # 2. 질문하기
-        response = model.generate_content(prompt)
-        
-        # 3. 답변 반환
-        return response.text
-        
-    except Exception as e:
-        # ★ 중요: 또 실패하면 이번엔 'AI 연결 실패'라고 퉁치지 않고
-        # 진짜 에러 이유(영어 메시지)를 보여주게 했습니다.
-        return f"오류 발생: {e}"
+    models = ["gemini-flash-latest", "gemini-1.5-flash", "gemini-pro"]
+    for model in models:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+            resp = requests.post(url, headers={'Content-Type': 'application/json'}, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=30)
+            if resp.status_code == 200: return resp.json()['candidates'][0]['content']['parts'][0]['text']
+        except: continue
+    return "❌ AI 연결 실패"
 
 def generate_pro_insight(channel, df):
     prompt = f"""
@@ -337,7 +326,4 @@ if st.session_state.data is not None:
 
 else:
     st.title("🎥 Solinker Channel Analyzer")
-
     st.markdown("왼쪽 사이드바에 **유튜브 키**와 **핸들**을 입력하고 **[심층 분석 시작]**을 눌러주세요.")
-
-
