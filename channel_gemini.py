@@ -1,22 +1,18 @@
 import streamlit as st
+import google.generativeai as genai
 from googleapiclient.discovery import build
 import pandas as pd
 import plotly.express as px
 import isodate
-import requests
-import json
-from datetime import datetime
 import io 
 from docx import Document 
 from docx.oxml.ns import qn 
-from docx.shared import Pt # 폰트 크기 조절용
+from docx.shared import Pt 
+from datetime import datetime
 
 # ==============================================================================
-# [필승 설정] check.py에서 성공했던 그 'Gemini 키'를 따옴표 안에 붙여넣으세요!
+# [설정] 페이지 기본 설정
 # ==============================================================================
-GEMINI_API_KEY = "AIzaSyC55QLE52rmridJ0I_RiRXEyTy5WzszSJk"
-# ==============================================================================
-
 st.set_page_config(page_title="Solinker Channel Analyzer", page_icon="⚡", layout="wide")
 
 # [스타일] UI 최적화
@@ -54,10 +50,15 @@ if "data" not in st.session_state: st.session_state.data = None
 with st.sidebar:
     st.header("🔧 설정 패널")
     
-    if GEMINI_API_KEY.startswith("AIza"):
-        st.success(f"✅ AI 엔진 준비 완료")
-    else:
-        st.error("🚨 코드 12번째 줄에 Gemini 키를 넣어주세요!")
+    # Gemini API 키 설정 (Secrets에서 가져오기)
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            st.success(f"✅ AI 엔진 준비 완료")
+        else:
+            st.error("🚨 Secrets에 GEMINI_API_KEY가 없습니다.")
+    except Exception as e:
+        st.error(f"🚨 설정 오류: {e}")
 
     with st.expander("🔑 유튜브 키 입력", expanded=True):
         yt_key = st.text_input("YouTube API Key", type="password")
@@ -74,6 +75,7 @@ with st.sidebar:
 def get_youtube(api_key): return build("youtube", "v3", developerKey=api_key)
 
 def check_is_shorts(video_id):
+    import requests
     try: return requests.head(f"https://www.youtube.com/shorts/{video_id}", allow_redirects=False, timeout=2).status_code == 200
     except: return False
 
@@ -128,34 +130,27 @@ def get_recent_videos(yt, upload_id):
         return pd.DataFrame(videos)
     except: return pd.DataFrame()
 
-# [핵심] 워드 생성기 (표 인식 기능 추가됨)
+# [핵심] 워드 생성기
 def create_docx(text, title="문서"):
     doc = Document()
-    
-    # 1. 문서 기본 폰트 설정 (한글 깨짐 방지)
     style = doc.styles['Normal']
     style.font.name = 'Malgun Gothic'
     style.element.rPr.rFonts.set(qn('w:eastAsia'), 'Malgun Gothic')
     
     doc.add_heading(title, 0)
     
-    # 줄 단위로 처리하되, 표(Table)를 만나면 모아서 한 번에 처리
     lines = text.split('\n')
-    table_buffer = [] # 표 내용을 임시 저장할 공간
+    table_buffer = [] 
     
     for line in lines:
         line = line.strip()
-        
-        # (1) 표가 시작되거나 이어지는 경우 (|로 시작)
         if line.startswith('|'):
             table_buffer.append(line)
         else:
-            # (2) 표가 끝났는데 버퍼에 내용이 있다면 -> 표 생성!
             if table_buffer:
                 _add_table_to_doc(doc, table_buffer)
-                table_buffer = [] # 버퍼 초기화
+                table_buffer = [] 
             
-            # (3) 일반 텍스트 처리
             if not line: continue
             
             if line.startswith('### '): doc.add_heading(line.replace('### ', ''), level=3)
@@ -164,7 +159,6 @@ def create_docx(text, title="문서"):
             elif line.startswith('- ') or line.startswith('* '): doc.add_paragraph(line, style='List Bullet')
             else: doc.add_paragraph(line)
             
-    # 반복문이 끝났는데 마지막에 표가 남아있을 경우 처리
     if table_buffer:
         _add_table_to_doc(doc, table_buffer)
 
@@ -173,48 +167,38 @@ def create_docx(text, title="문서"):
     buffer.seek(0)
     return buffer
 
-# 내부 함수: 마크다운 표를 워드 표로 변환
 def _add_table_to_doc(doc, markdown_lines):
-    # 데이터 파싱
     rows = []
     for line in markdown_lines:
-        # | 구분자로 자르고 앞뒤 공백 제거
         cells = [c.strip() for c in line.strip('|').split('|')]
         rows.append(cells)
     
-    # 구분선(---|---) 제거: 보통 두 번째 줄에 있음
     real_rows = [r for r in rows if not set(''.join(r)).issubset(set('-:| '))]
-    
     if not real_rows: return
 
-    # 표 생성
     num_cols = len(real_rows[0])
     table = doc.add_table(rows=len(real_rows), cols=num_cols)
-    table.style = 'Table Grid' # 격자 무늬 스타일 적용
+    table.style = 'Table Grid' 
     
-    # 데이터 채우기 & 폰트 설정
     for i, row_data in enumerate(real_rows):
         row = table.rows[i]
         for j, text in enumerate(row_data):
             if j < len(row.cells):
                 cell = row.cells[j]
                 cell.text = text
-                # 표 안의 글씨도 '맑은 고딕' 강제 적용
                 for paragraph in cell.paragraphs:
                     for run in paragraph.runs:
                         run.font.name = 'Malgun Gothic'
                         run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Malgun Gothic')
 
-# 4. AI 연결
-def call_gemini_rest(prompt):
-    models = ["gemini-flash-latest", "gemini-1.5-flash", "gemini-pro"]
-    for model in models:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-            resp = requests.post(url, headers={'Content-Type': 'application/json'}, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=30)
-            if resp.status_code == 200: return resp.json()['candidates'][0]['content']['parts'][0]['text']
-        except: continue
-    return "❌ AI 연결 실패"
+# 4. AI 연결 (google.generativeai 라이브러리 사용)
+def call_gemini(prompt):
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"❌ AI 연결 실패: {str(e)}"
 
 def generate_pro_insight(channel, df):
     prompt = f"""
@@ -235,11 +219,11 @@ def generate_pro_insight(channel, df):
     2. 🚨 냉정한 비판 (성장 정체 원인)
     3. 🚀 솔루션 3가지 (구체적 실행 방안)
     """
-    return call_gemini_rest(prompt)
+    return call_gemini(prompt)
 
 def ask_gemini_chat(question, context_report):
     prompt = f"당신은 유튜브 컨설턴트입니다.\n[리포트]\n{context_report}\n[질문]\n{question}\n답변해주세요."
-    return call_gemini_rest(prompt)
+    return call_gemini(prompt)
 
 # 5. 메인 실행
 if st.session_state.run_pro and yt_key:
