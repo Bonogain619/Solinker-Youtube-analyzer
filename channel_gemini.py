@@ -14,7 +14,7 @@ from docx.shared import Pt # 폰트 크기 조절용
 # ==============================================================================
 # [필승 설정] check.py에서 성공했던 그 'Gemini 키'를 따옴표 안에 붙여넣으세요!
 # ==============================================================================
-GEMINI_API_KEY = "AIzaSyASndV5RssUI9Uj3Shuwm8BdhnFP5F7vx4"
+GEMINI_API_KEY = "AIzaSyC55QLE52rmridJ0I_RiRXEyTy5WzszSJk"
 # ==============================================================================
 
 st.set_page_config(page_title="Solinker Channel Analyzer", page_icon="⚡", layout="wide")
@@ -326,4 +326,5 @@ if st.session_state.data is not None:
 
 else:
     st.title("🎥 Solinker Channel Analyzer")
+
     st.markdown("왼쪽 사이드바에 **유튜브 키**와 **핸들**을 입력하고 **[심층 분석 시작]**을 눌러주세요.")
