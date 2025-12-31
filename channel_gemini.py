@@ -194,7 +194,7 @@ def _add_table_to_doc(doc, markdown_lines):
 # 4. AI 연결 (google.generativeai 라이브러리 사용)
 def call_gemini(prompt):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-pro')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
@@ -312,3 +312,4 @@ else:
     st.title("🎥 Solinker Channel Analyzer")
 
     st.markdown("왼쪽 사이드바에 **유튜브 키**와 **핸들**을 입력하고 **[심층 분석 시작]**을 눌러주세요.")
+
