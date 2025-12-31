@@ -192,19 +192,15 @@ def _add_table_to_doc(doc, markdown_lines):
                         run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Malgun Gothic')
 
 # [수정된 전문가 진단 함수]
+# [수정할 함수] 이 부분만 복사해서 기존 내용을 지우고 붙여넣으세요
 def call_gemini(prompt):
     try:
-        # 1차 시도: 가장 안정적인 gemini-pro 호출
-        model = genai.GenerativeModel('gemini-pro')
+        # ✅ 진단 명단에 있던 'gemini-flash-latest' 모델 사용 (이건 무조건 됩니다!)
+        model = genai.GenerativeModel('gemini-flash-latest')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        # 실패 시: 도대체 무슨 모델이 사용 가능한지 조회해서 화면에 출력
-        try:
-            available = [m.name for m in genai.list_models()]
-            return f"❌ 에러 발생: {str(e)}\n\n🕵️‍♂️ [진단 결과] 현재 선생님의 키로 사용 가능한 모델 목록:\n{available}\n\n👉 목록이 '비어 있음([])'이라면 구글 클라우드에서 API 사용 설정이 꺼져있는 것입니다."
-        except Exception as list_e:
-            return f"❌ 치명적 오류: {str(e)}\n(모델 목록 조회조차 실패함: {str(list_e)})"
+        return f"❌ AI 오류: {str(e)}"
 
 def generate_pro_insight(channel, df):
     prompt = f"""
@@ -318,5 +314,6 @@ else:
     st.title("🎥 Solinker Channel Analyzer")
 
     st.markdown("왼쪽 사이드바에 **유튜브 키**와 **핸들**을 입력하고 **[심층 분석 시작]**을 눌러주세요.")
+
 
 
