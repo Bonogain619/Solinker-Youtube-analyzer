@@ -210,15 +210,22 @@ def _add_table_to_doc(doc, markdown_lines):
                         run._element.rPr.rFonts.set(qn('w:eastAsia'), 'Malgun Gothic')
 
 # 4. AI 연결
+# 기존의 복잡한 requests 방식 대신, 공식 라이브러리를 사용합니다.
 def call_gemini_rest(prompt):
-    models = ["gemini-flash-latest", "gemini-1.5-flash", "gemini-pro"]
-    for model in models:
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-            resp = requests.post(url, headers={'Content-Type': 'application/json'}, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=30)
-            if resp.status_code == 200: return resp.json()['candidates'][0]['content']['parts'][0]['text']
-        except: continue
-    return "❌ AI 연결 실패"
+    try:
+        # 1. 모델 설정 (우리가 아까 설정한 키를 자동으로 가져다 씁니다)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # 2. 질문하기
+        response = model.generate_content(prompt)
+        
+        # 3. 답변 반환
+        return response.text
+        
+    except Exception as e:
+        # ★ 중요: 또 실패하면 이번엔 'AI 연결 실패'라고 퉁치지 않고
+        # 진짜 에러 이유(영어 메시지)를 보여주게 했습니다.
+        return f"오류 발생: {e}"
 
 def generate_pro_insight(channel, df):
     prompt = f"""
@@ -332,4 +339,5 @@ else:
     st.title("🎥 Solinker Channel Analyzer")
 
     st.markdown("왼쪽 사이드바에 **유튜브 키**와 **핸들**을 입력하고 **[심층 분석 시작]**을 눌러주세요.")
+
 
